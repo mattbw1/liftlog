@@ -68,6 +68,16 @@
 <div id="logView">
   <div class="days" id="days"></div>
   <div id="exList"></div>
+  <div class="ex" id="cardioCard">
+    <div style="flex:1">
+      <h3>Cardio (optional)</h3>
+      <div class="tgt">Zone 2 target: 2–3 × 30 min/week · after lifting or separate days</div>
+      <div class="sets" style="margin-top:6px">
+        <div class="setrow"><input id="cardio_type" placeholder="type (incline walk…)" style="width:150px;text-align:left"></div>
+        <div class="setrow"><input id="cardio_min" inputmode="numeric" placeholder="min"><span>min</span></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div id="histView" style="display:none">
@@ -90,14 +100,17 @@
 <script>
 const PROGRAM = {
   1:{name:"Push",ex:[
-    ["Bench press",4,8,12,5],["Incline DB press",3,8,12,5],["Seated DB shoulder press",3,8,12,5],
-    ["Lateral raise",3,10,15,2.5],["Dips / pushdown",4,8,12,5],["Chest-supported row",3,8,12,5]]},
+    ["Bench press",4,8,12,5],["Incline DB press",3,8,12,5],["Cable flye",3,8,12,2.5],
+    ["Seated DB shoulder press",3,8,12,5],["Lateral raise",3,10,15,2.5],
+    ["Dips / pushdown",3,8,12,5],["Overhead triceps extension",3,8,12,2.5],
+    ["Chest-supported row",3,8,12,5],["Face pulls",3,12,15,2.5]]},
   2:{name:"Quads",ex:[
     ["Squat / hack squat",4,8,12,10],["Leg press",3,8,12,10],["Leg extension",3,10,15,5],
     ["Standing calf raise",4,8,12,10],["Cable crunch",3,10,12,5],["Hanging leg raise",3,8,12,0]]},
   3:{name:"Pull",ex:[
-    ["Pull-up / pulldown",4,8,12,5],["Barbell / cable row",4,8,12,5],["Rear delt / face pull",3,12,15,2.5],
-    ["Curls",4,8,12,2.5],["Incline / machine press",3,8,12,5]]},
+    ["Barbell row",4,8,12,5],["Lat pulldown",3,8,12,5],["DB row",3,8,12,5],["Pulldown (alt grip)",3,8,12,5],
+    ["Rear delt / face pull",3,12,15,2.5],["Curl (BB/EZ/DB)",3,8,12,2.5],["Incline DB / hammer curl",3,8,12,2.5],
+    ["Incline / machine press",3,8,12,5]]},
   4:{name:"Posterior",ex:[
     ["Romanian deadlift",4,8,12,10],["Hip thrust / GHR",3,8,12,10],["Single-leg leg press (deep)",3,10,15,10],
     ["Leg curl",3,10,12,5],["Seated calf raise",3,10,15,10],["Ab-wheel rollout",3,8,12,0],["Woodchop / side plank",3,10,12,2.5]]}
@@ -172,7 +185,10 @@ function saveSession(){
   const entries=collect();
   if(!entries){toast("Nothing entered yet");return;}
   const hist=prevTwo(curDay);
+  const ct=document.getElementById("cardio_type").value.trim();
+  const cm=document.getElementById("cardio_min").value.trim();
   const sess={date:new Date().toISOString().slice(0,10),day:curDay,entries};
+  if(ct||cm)sess.cardio={type:ct||"cardio",min:cm||"?"};
   let msgs=0;
   PROGRAM[curDay].ex.forEach((e,ei)=>{
     const v=verdictFor(ei,entries,hist);
@@ -180,7 +196,8 @@ function saveSession(){
     if(v){el.className="verdict "+v[0];el.textContent=v[1];msgs++;}
   });
   store.sessions.push(sess);persist();
-  toast("Saved — "+msgs+" lifts scored");
+  document.getElementById("cardio_type").value="";document.getElementById("cardio_min").value="";
+  toast("Saved — "+msgs+" lifts scored"+(sess.cardio?" + cardio":""));
   window.scrollTo({top:0,behavior:"smooth"});
 }
 function sessionText(s){
@@ -190,7 +207,9 @@ function sessionText(s){
     const sets=s.entries[ei]?s.entries[ei].filter(x=>x.r!==""):[];
     if(sets.length)parts.push(`${e[0]} ${fmtSets(sets)}`);
   });
-  return out+parts.join("; ");
+  let txt=out+parts.join("; ");
+  if(s.cardio)txt+=` | Cardio: ${s.cardio.type} ${s.cardio.min} min`;
+  return txt;
 }
 function exportClaude(){
   const s=store.sessions[store.sessions.length-1];
