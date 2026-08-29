@@ -100,9 +100,11 @@
 <script>
 const PROGRAM = {
   1:{name:"Push",ex:[
-    ["Bench press",4,8,12,5],["Incline DB press",3,8,12,5],["Cable flye",3,8,12,2.5],
-    ["Seated DB shoulder press",3,8,12,5],["Lateral raise",3,10,15,2.5],
-    ["Dips / pushdown",3,8,12,5],["Overhead triceps extension",3,8,12,2.5],
+    ["Bench press — BARBELL",4,8,12,5],["Bench press — DUMBBELL",4,8,12,5],
+    ["Incline DB press",3,8,12,5],["Cable flye",3,8,12,2.5],
+    ["Seated DB shoulder press",3,8,12,5],
+    ["Overhead triceps extension",3,8,12,2.5],["Triceps pushdown",3,8,12,5],
+    ["Lateral raise",3,10,15,2.5],
     ["Chest-supported row",3,8,12,5],["Face pulls",3,12,15,2.5]]},
   2:{name:"Quads",ex:[
     ["Squat / hack squat",4,8,12,10],["Leg press",3,8,12,10],["Leg extension",3,10,15,5],
@@ -113,7 +115,7 @@ const PROGRAM = {
     ["Incline / machine press",3,8,12,5]]},
   4:{name:"Posterior",ex:[
     ["Romanian deadlift",4,8,12,10],["Hip thrust / GHR",3,8,12,10],["Single-leg leg press (deep)",3,10,15,10],
-    ["Leg curl",3,10,12,5],["Seated calf raise",3,10,15,10],["Ab-wheel rollout",3,8,12,0],["Woodchop / side plank",3,10,12,2.5]]}
+    ["Leg curl",3,10,12,5],["Seated calf raise",3,10,15,10],["Cable crunch",3,10,12,5],["Woodchop / side plank",3,10,12,2.5]]}
 };
 let store={sessions:[]};
 try{const raw=localStorage.getItem("liftlog_v1");if(raw)store=JSON.parse(raw);}catch(e){}
@@ -123,6 +125,9 @@ function persist(){try{localStorage.setItem("liftlog_v1",JSON.stringify(store));
 function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),1800);}
 function lastSession(day){for(let i=store.sessions.length-1;i>=0;i--){if(store.sessions[i].day===day)return store.sessions[i];}return null;}
 function prevTwo(day){const r=[];for(let i=store.sessions.length-1;i>=0&&r.length<2;i--){if(store.sessions[i].day===day)r.push(store.sessions[i]);}return r;}
+// Returns the last n sessions that actually contain data for THIS exercise index.
+// Skipping an exercise (or alternating barbell/DB bench) no longer breaks its progression tracking.
+function prevWith(day,ei,n){const r=[];for(let i=store.sessions.length-1;i>=0&&r.length<n;i--){const s=store.sessions[i];if(s.day!==day)continue;const e=s.entries[ei]?s.entries[ei].filter(x=>x.r!==""):[];if(e.length)r.push(e);}return r;}
 function fmtSets(sets){return sets.filter(s=>s.w!==""||s.r!=="").map(s=>`${s.w||0}×${s.r||0}`).join(", ");}
 
 function renderDays(){
@@ -170,14 +175,15 @@ function verdictFor(ei,entries,history){
   if(!cur.length)return null;
   const allTop=cur.length>=ns&&cur.every(s=>parseFloat(s.r)>=hi);
   if(allTop)return["v-add","All sets at top of range — ADD WEIGHT next session"];
-  const prev=history[0]&&history[0].entries[ei]?history[0].entries[ei].filter(s=>s.r!==""):null;
-  if(!prev||!prev.length)return["v-ok","Baseline recorded"];
+  const h=prevWith(curDay,ei,2);
+  const prev=h[0];
+  if(!prev)return["v-ok","Baseline recorded"];
   const maxW=a=>Math.max(...a.map(s=>parseFloat(s.w)||0));
   const totR=a=>a.reduce((t,s)=>t+(parseFloat(s.r)||0),0);
   if(maxW(cur)>maxW(prev))return["v-ok","Weight up ✓"];
   if(maxW(cur)===maxW(prev)&&totR(cur)>totR(prev))return["v-ok","Reps up ✓ — keep pushing toward "+hi];
-  const prev2=history[1]&&history[1].entries[ei]?history[1].entries[ei].filter(s=>s.r!==""):null;
-  if(prev2&&prev2.length&&maxW(prev)<=maxW(prev2)&&totR(prev)<=totR(prev2))
+  const prev2=h[1];
+  if(prev2&&maxW(prev)<=maxW(prev2)&&totR(prev)<=totR(prev2))
     return["v-stall","Stalled ×2 — first fix is CALORIES + protein, not effort"];
   return["v-flat","Flat vs last time — match or beat it next session"];
 }
